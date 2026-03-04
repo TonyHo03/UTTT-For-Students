@@ -8,13 +8,13 @@ import dk.easv.bll.move.Move;
 import java.util.*;
 
 /**
- * Negamax + Iterative Deepening + Alpha-Beta + Transposition Table + PVS
+ * Negamax + Iterative Deepening + Alpha-Beta + Transposition Table
  */
-public class Negabot implements IBot {
+public class SupaNegaBot implements IBot {
 
-    private static final String BOT_NAME = "NegaBot";
+    private static final String BOT_NAME = "SupaNegaBot";
     private static final long TIME_MS = 920; // leave 80ms margin
-    private static final int MAX_DEPTH = 20; // iterative deepening cap
+    private static final int MAX_DEPTH = 14; // iterative deepening cap
     private static final int INF = 1_000_000; // represent infinity for our search algorithm
     private static final int WIN_SCORE = 900_000; // terminal win value
     private long deadline; // time management
@@ -169,26 +169,12 @@ public class Negabot implements IBot {
         int bestScore = -INF;
         IMove bestMove = moves.isEmpty() ? null : moves.get(0);
 
-        // PVS: search the first (best-ordered) move with a full window,
-        // then use a null window for all subsequent moves and re-search on failure.
-        boolean firstMove = true;
         for (IMove move : moves) {
             if (System.currentTimeMillis() >= deadline)
                 return new SearchResult(bestScore, bestMove, true);
 
             gs.applyMove(move);
-            SearchResult child;
-            if (firstMove) {
-                // Full window search on the first (presumed best) move
-                child = negamax(gs, depth - 1, -beta, -alpha, false);
-            } else {
-                // Null window search: assume this move won't beat alpha
-                child = negamax(gs, depth - 1, -alpha - 1, -alpha, false);
-                if (!child.timedOut && -child.score > alpha && -child.score < beta) {
-                    // Failed high: this move is better than expected — re-search with full window
-                    child = negamax(gs, depth - 1, -beta, -alpha, false);
-                }
-            }
+            SearchResult child = negamax(gs, depth - 1, -beta, -alpha, false);
             gs.undoMove(move);
 
             if (child.timedOut) return new SearchResult(bestScore, bestMove, true);
@@ -200,7 +186,6 @@ public class Negabot implements IBot {
             }
             if (score > alpha) alpha = score;
             if (alpha >= beta) break; // beta cutoff
-            firstMove = false;
         }
 
         // Store in TT
