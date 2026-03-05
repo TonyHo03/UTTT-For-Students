@@ -1,0 +1,284 @@
+@import url('https://fonts.googleapis.com/css?family=Love+Ya+Like+A+Sister');
+
+.root{
+    -icons-color: white;
+    -fx-background-color: rgb(230, 239, 255);
+    -fx-font-family: 'Love Ya Like A Sister', cursive;
+}
+
+/* ── Game board cells ─────────────────────────────── */
+
+.tictaccell{
+    -fx-font-size: 24px;
+    -fx-text-fill: white;
+    -fx-background-color: rgb(77,102,204);
+    -fx-background-radius: 0;
+    -fx-background-insets: 1;
+    -fx-pref-width: 100%;
+    -fx-pref-height: 100%;
+    -fx-alignment: CENTER;
+}
+
+.empty{
+}
+
+.player0{
+    -fx-background-color: green;
+    -fx-background-radius: 0;
+}
+.player1{
+    -fx-background-color: red;
+    -fx-background-radius: 0;
+}
+.playerTIE{
+    -fx-background-color: rgb(77,102,204);
+    -fx-background-radius: 0;
+}
+
+/* Compound selectors to ensure player colors override component backgrounds */
+.tictaccell.player0,
+.tictaccell.player1{
+    -fx-background-insets: 1;
+}
+.winner-label.player0{
+    -fx-background-color: green;
+}
+.winner-label.player1{
+    -fx-background-color: red;
+}
+.winner-label.playerTIE{
+    -fx-background-color: rgb(77,102,204);
+}
+.winner-text.player0{
+    -fx-background-color: rgba(0, 128, 0, 0.7);
+}
+.winner-text.player1{
+    -fx-background-color: rgba(255, 0, 0, 0.7);
+}
+.winner-text.playerTIE{
+    -fx-background-color: rgba(73, 117, 215, 0.18);
+}
+
+.highlight{
+    -fx-border-style: solid;
+    -fx-border-color: gold;
+    -fx-border-width: 5px;
+    -fx-background-color: rgba(255, 215, 0, 0.15);
+}
+
+/* ── Start screen ─────────────────────────────────── */
+
+.game-headline{
+    -fx-font-size: 65px;
+    -fx-text-fill: black;
+}
+
+.start-players{
+    -fx-font-size: 160px;
+    -fx-alignment: center;
+    -fx-background-radius: 0;
+}
+
+.selectors{
+    -fx-font-size: 18px;
+    -fx-text-fill: black;
+}
+
+.selectors.namesetter{
+    -fx-font-size: 15px;
+}
+
+.radio-button{
+    -fx-background-color: transparent;
+}
+
+.text-field, .combo-box{
+    -fx-background-color: white;
+    -fx-border-color: rgb(180, 190, 210);
+    -fx-border-radius: 2;
+    -fx-background-radius: 2;
+}
+
+.slider .track{
+    -fx-background-color: rgb(180, 190, 210);
+}
+.slider .thumb{
+    -fx-background-color: rgb(70, 100, 180);
+}
+
+/* ── Buttons ──────────────────────────────────────── */
+
+.start-button{
+    -fx-font-size: 25px;
+    -fx-background-color: rgb(50, 60, 80);
+    -fx-background-radius: 0;
+    -fx-text-fill: white;
+}
+.start-button:hover{
+    -fx-background-color: rgb(70, 80, 100);
+}
+
+.action-button{
+    -fx-font-size: 18px;
+    -fx-background-color: rgb(50, 60, 80);
+    -fx-background-radius: 0;
+    -fx-text-fill: white;
+    -fx-padding: 5 15;
+}
+.action-button:hover{
+    -fx-background-color: rgb(70, 80, 100);
+}
+.action-button:selected{
+    -fx-background-color: rgb(30, 120, 70);
+}
+.action-button:selected:hover{
+    -fx-background-color: rgb(40, 140, 85);
+}
+.action-button:disabled{
+    -fx-background-color: rgb(160, 170, 185);
+    -fx-opacity: 0.7;
+}
+
+/* ── Simulate box ─────────────────────────────────── */
+
+.sim-box{
+    -fx-border-style: solid;
+    -fx-border-color: rgb(180, 190, 210);
+    -fx-border-width: 1;
+    -fx-border-radius: 3;
+    -fx-background-color: rgb(215, 225, 245);
+    -fx-background-radius: 3;
+}
+
+/* ── Win screen ───────────────────────────────────── */
+
+.winmsg{
+    -fx-font-size: 440px;
+    -fx-opacity: 0.7;
+}
+
+.winner-text{
+    -fx-background-color: rgba(73, 117, 215, 0.18);
+    -fx-font-size: 45px;
+    -fx-text-fill: lightgoldenrodyellow;
+}
+
+.winner-label{
+    -fx-font-size: 140px;
+    -fx-alignment: center;
+    -fx-background-color: rgba(73, 117, 215, 0.18);
+    -icons-color: lightgoldenrodyellow;
+}
+
+.glyph-icon{
+    -icons-color: lightgoldenrodyellow;
+    -fx-fill: linear-gradient(-icons-color 0%, derive(burlywood, 30%) 85%);
+    -fx-effect: dropshadow(three-pass-box, rgba(0,0,0,1.0), 10, 0, 0, 0);
+    -glyph-size: 48px;
+}
+
+/* ── Stats window ────────────────────────────────── */
+
+.split-pane{
+    -fx-background-color: rgb(230, 239, 255);
+}
+.split-pane > .split-pane-divider{
+    -fx-background-color: rgb(180, 190, 210);
+    -fx-padding: 2 0;
+}
+
+.stats-player-name{
+    -fx-font-size: 22px;
+    -fx-text-fill: white;
+    -fx-padding: 8;
+}
+.stats-player-name.player0{
+    -fx-background-color: green;
+}
+.stats-player-name.player1{
+    -fx-background-color: red;
+}
+
+.stats-ratio{
+    -fx-font-size: 14px;
+    -fx-text-fill: black;
+    -fx-padding: 4;
+    -fx-background-color: rgb(215, 225, 245);
+}
+
+.active-games-scroll{
+    -fx-background-color: transparent;
+    -fx-background: transparent;
+}
+.active-games-scroll .viewport{
+    -fx-background-color: transparent;
+}
+.active-games-flow{
+    -fx-padding: 6;
+}
+.active-game-card{
+    -fx-padding: 4 6;
+    -fx-background-color: rgb(215, 230, 250);
+    -fx-background-radius: 4;
+}
+.outer-macro-grid{
+    -fx-background-color: rgb(80, 80, 80);
+    -fx-padding: 2;
+    -fx-background-radius: 1;
+}
+.card-name-p0{
+    -fx-text-fill: green;
+    -fx-font-size: 11px;
+    -fx-font-weight: bold;
+}
+.card-name-p1{
+    -fx-text-fill: red;
+    -fx-font-size: 11px;
+    -fx-font-weight: bold;
+}
+.micro-section{
+    -fx-padding: 1;
+    -fx-background-color: rgb(200, 210, 230);
+    -fx-background-radius: 1;
+}
+.section-p0{
+    -fx-background-color: rgba(0, 128, 0, 0.4);
+}
+.section-p1{
+    -fx-background-color: rgba(255, 0, 0, 0.4);
+}
+.section-tie{
+    -fx-background-color: rgba(77, 102, 204, 0.5);
+}
+.micro-cell-p0{
+    -fx-background-color: green;
+}
+.micro-cell-p1{
+    -fx-background-color: red;
+}
+.micro-cell-tie{
+    -fx-background-color: rgb(77, 102, 204);
+}
+.micro-cell-empty{
+    -fx-background-color: rgb(220, 230, 245);
+}
+.active-games-label{
+    -fx-font-size: 15px;
+    -fx-font-weight: bold;
+    -fx-text-fill: white;
+    -fx-padding: 4 8;
+    -fx-background-color: rgb(70, 90, 130);
+}
+
+.warning-banner{
+    -fx-background-color: rgb(230, 200, 100);
+    -fx-background-radius: 4;
+    -fx-font-size: 13px;
+}
+.warning-close{
+    -fx-background-color: transparent;
+    -fx-text-fill: #333;
+    -fx-font-weight: bold;
+    -fx-cursor: hand;
+    -fx-padding: 2 6;
+}
