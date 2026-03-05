@@ -1,6 +1,6 @@
 package dk.easv.gui;
 
-import com.jfoenix.controls.*;
+import javafx.scene.control.*;
 import dk.easv.bll.bot.IBot;
 import dk.easv.bll.game.GameManager;
 import dk.easv.bll.game.stats.GameResult;
@@ -22,56 +22,59 @@ import javafx.stage.Stage;
 import java.io.IOException;
 import java.net.URL;
 import java.util.ResourceBundle;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import javafx.application.Platform;
-import javafx.beans.property.BooleanProperty;
-import javafx.beans.property.SimpleBooleanProperty;
 import javafx.collections.FXCollections;
 import javafx.scene.layout.AnchorPane;
 
 public class AppController implements Initializable {
 
-    public JFXButton btnTrash;
-    public JFXButton btnDiamond;
+    public Button btnTrash;
+    public Button btnDiamond;
     @FXML
-    private JFXTextField txtHumanNameLeft;
+    private TextField txtHumanNameLeft;
     @FXML
-    private JFXRadioButton radioRightAI;
+    private RadioButton radioRightAI;
     @FXML
-    private JFXTextField txtHumanNameRight;
+    private TextField txtHumanNameRight;
     @FXML
-    private JFXRadioButton radioLeftAI;
+    private RadioButton radioLeftAI;
     @FXML
-    private JFXRadioButton radioRightHuman;
+    private RadioButton radioRightHuman;
     @FXML
     private ToggleGroup toggleLeft;
     @FXML
     private ToggleGroup toggleRight;
 
     @FXML
-    private JFXButton btnStart;
+    private Button btnStart;
     @FXML
-    private JFXComboBox<IBot> comboBotsRight;
+    private ComboBox<IBot> comboBotsRight;
     @FXML
-    private JFXComboBox<IBot> comboBotsLeft;
+    private ComboBox<IBot> comboBotsLeft;
     @FXML
-    private JFXRadioButton radioLeftHuman;
+    private RadioButton radioLeftHuman;
     @FXML
-    private JFXSlider sliderSpeed;
+    private Slider sliderSpeed;
 
     StatsModel statsModel = new StatsModel();
     @FXML
     private AnchorPane anchorMain;
-    private BooleanProperty simulation= new SimpleBooleanProperty(false);
-    private volatile int winsBot1 = 0;
-    private volatile int winsBot2 = 0;
-    private volatile int ties = 0;
+    private final AtomicInteger winsBot1 = new AtomicInteger(0);
+    private final AtomicInteger winsBot2 = new AtomicInteger(0);
+    private final AtomicInteger ties = new AtomicInteger(0);
+    private final AtomicInteger activeSimThreads = new AtomicInteger(0);
     @FXML
-    private JFXToggleButton toggleBtnSim;
+    private Button btnStartSim;
     @FXML
-    private JFXSlider sliderSim;
-    
+    private Slider sliderSim;
+    @FXML
+    private Label lblBotSpeed;
+    @FXML
+    private Label lblSimCount;
+
     private Stage statsWindow  = null;
 
     @Override
@@ -82,7 +85,7 @@ public class AppController implements Initializable {
             DynamicBotClassHandler.writeBotsToTextFile();
             bots = loadBotList();
         }
-        catch (IOException | ClassNotFoundException | InstantiationException | IllegalAccessException ex) {
+        catch (Exception ex) {
             Logger.getLogger(AppController.class.getName()).log(Level.SEVERE, null, ex);
         }
 
@@ -92,7 +95,6 @@ public class AppController implements Initializable {
         comboBotsRight.setButtonCell(new CustomIBotListCell());
         comboBotsRight.setCellFactory(p -> new CustomIBotListCell());
         comboBotsRight.setItems(bots);
-        btnStart.setDisableVisualFocus(true);
         btnDiamond.setGraphic(getFontAwesomeIconFromPlayerId("1"));
         btnTrash.setGraphic(getFontAwesomeIconFromPlayerId("0"));
 
@@ -104,12 +106,14 @@ public class AppController implements Initializable {
         comboBotsLeft.setDisable(true);
         comboBotsRight.getSelectionModel().selectFirst();
         comboBotsRight.setDisable(true);
-        simulation.bind(toggleBtnSim.selectedProperty());
-        /*simulation.addListener((obs,old,isSelected)->{
-            if(isSelected){
-                
-            }
-        });*/
+        btnStartSim.setGraphic(de.jensd.fx.glyphs.fontawesome.utils.FontAwesomeIconFactory.get()
+                .createIcon(de.jensd.fx.glyphs.fontawesome.FontAwesomeIcon.EXTERNAL_LINK, "16"));
+        sliderSpeed.valueProperty().addListener((obs, oldVal, newVal) ->
+                lblBotSpeed.setText("Bot Move Delay: " + Math.round(newVal.doubleValue()) + "ms"));
+        lblBotSpeed.setText("Bot Move Delay: " + Math.round(sliderSpeed.getValue()) + "ms");
+        sliderSim.valueProperty().addListener((obs, oldVal, newVal) ->
+                lblSimCount.setText(Math.round(newVal.doubleValue()) + ""));
+        lblSimCount.setText(Math.round(sliderSim.getValue()) + "");
     }
 
     @FXML
@@ -147,13 +151,18 @@ public class AppController implements Initializable {
 
     private void startSimulation(long amountOfSimulations) {
         int multiCores = Runtime.getRuntime().availableProcessors();
-        winsBot1 = 0;
-        winsBot2 = 0;
-        ties = 0;
+        winsBot1.set(0);
+        winsBot2.set(0);
+        ties.set(0);
+        long perThread = amountOfSimulations / multiCores;
+        long remainder = amountOfSimulations % multiCores;
+        activeSimThreads.set(multiCores);
+        statsModel.simulatingProperty().set(true);
         for (int i = 0; i < multiCores; i++) {
+            long count = perThread + (i < remainder ? 1 : 0);
             Thread t = new Thread(
-                    new Simulator(amountOfSimulations/multiCores, 
-                        this.comboBotsLeft.getValue().getClass(), 
+                    new Simulator(count,
+                        this.comboBotsLeft.getValue().getClass(),
                         this.comboBotsRight.getValue().getClass()));
             t.setDaemon(true);
             t.start();
@@ -164,12 +173,10 @@ public class AppController implements Initializable {
     private void clickSelector(ActionEvent event) {
         if(toggleLeft.getSelectedToggle()==radioLeftAI &&
                 toggleRight.getSelectedToggle()== radioRightAI) {
-            toggleBtnSim.setSelected(false);
-            toggleBtnSim.setDisable(false);
+            btnStartSim.setDisable(false);
             sliderSim.setDisable(false);
         } else {
-            toggleBtnSim.setSelected(false);
-            toggleBtnSim.setDisable(true);
+            btnStartSim.setDisable(true);
             sliderSim.setDisable(true);
         }
     }
@@ -178,112 +185,149 @@ public class AppController implements Initializable {
         private final long amountOfSimulations;
         private IBot bot1;
         private IBot bot2;
+        private final String name1;
+        private final String name2;
         public Simulator(
-                long amountOfSimulations, 
-                Class<? extends IBot> b1, 
+                long amountOfSimulations,
+                Class<? extends IBot> b1,
                 Class<? extends IBot> b2) {
 
             this.amountOfSimulations=amountOfSimulations;
             try {
-                this.bot1 = b1.newInstance();
-                this.bot2 = b2.newInstance();
+                this.bot1 = b1.getDeclaredConstructor().newInstance();
+                this.bot2 = b2.getDeclaredConstructor().newInstance();
             }
-            catch (InstantiationException ex) {
-                Logger.getLogger(AppController.class.getName()).log(Level.SEVERE, null, ex);
+            catch (Exception ex) {
+                throw new RuntimeException("Failed to instantiate bots for simulation", ex);
             }
-            catch (IllegalAccessException ex) {
-                Logger.getLogger(AppController.class.getName()).log(Level.SEVERE, null, ex);
+            if (bot1.getBotName().equals(bot2.getBotName())) {
+                name1 = bot1.getBotName() + " #1";
+                name2 = bot2.getBotName() + " #2";
+            } else {
+                name1 = bot1.getBotName();
+                name2 = bot2.getBotName();
             }
         }
         
         @Override
         public void run() {
-            for (int i = 0; i < amountOfSimulations/2; i++) {
+            long firstHalf = amountOfSimulations / 2;
+            long secondHalf = amountOfSimulations - firstHalf;
+            for (int i = 0; i < firstHalf; i++) {
                 BoardModel model = new BoardModel(bot1, bot2);
+                ActiveGame ag = new ActiveGame(name1, name2);
+                Platform.runLater(() -> statsModel.getActiveGames().add(ag));
                 int currentPlayer = 0;
                 while (model.getGameOverState() == GameManager.GameOverState.Active
                          && model.getGameState().getField().getAvailableMoves().size()>0) {
                     currentPlayer = model.getCurrentPlayer();
                     Boolean valid = model.doMove();
                     if (!valid) {
-                        throw new RuntimeException("Bot not following rules!");
+                        // Bot forfeits: opponent wins
+                        int opponent = (model.getCurrentPlayer() + 1) % 2;
+                        model.forceGameOver(opponent);
+                        currentPlayer = opponent;
+                        break;
                     }
+                    updateActiveGame(ag, model);
                 }
+                Platform.runLater(() -> statsModel.getActiveGames().remove(ag));
                 // There is a tie
                 if (model.getGameOverState().equals(GameManager.GameOverState.Tie)) {
-                    this.addGameResult(
-                            new GameResult(
-                                    bot1.getBotName(), 
-                                    bot2.getBotName(), 
-                                    GameResult.Winner.tie));
-                    ties++;
+                    this.addGameResult(createResult(name1, name2, GameResult.Winner.tie, model));
+                    ties.incrementAndGet();
                 }
                 else { // There is a winner
-                    GameResult.Winner winResult=null;
+                    GameResult.Winner winResult;
                     if(currentPlayer==0) {
-                        winsBot1++;
+                        winsBot1.incrementAndGet();
                         winResult = GameResult.Winner.player0;
                     }
-                    else if(currentPlayer==1){
-                        winsBot2++;
+                    else {
+                        winsBot2.incrementAndGet();
                         winResult = GameResult.Winner.player1;
                     }
-                        
-                    this.addGameResult(
-                            new GameResult(
-                                    bot1.getBotName(), 
-                                    bot2.getBotName(), 
-                                    winResult));
+                    this.addGameResult(createResult(name1, name2, winResult, model));
                 }
-                
+                updateTitle();
+
             }
-            for (int i = 0; i < amountOfSimulations/2; i++) {
+            for (int i = 0; i < secondHalf; i++) {
                 BoardModel model = new BoardModel(bot2, bot1);
+                ActiveGame ag = new ActiveGame(name2, name1);
+                Platform.runLater(() -> statsModel.getActiveGames().add(ag));
                 int currentPlayer = 0;
                 while (model.getGameOverState() == GameManager.GameOverState.Active
                          && model.getGameState().getField().getAvailableMoves().size()>0) {
                     currentPlayer = model.getCurrentPlayer();
                     Boolean valid = model.doMove();
                     if (!valid) {
-                        throw new RuntimeException("Bot not following rules!");
+                        int opponent = (model.getCurrentPlayer() + 1) % 2;
+                        model.forceGameOver(opponent);
+                        currentPlayer = opponent;
+                        break;
                     }
+                    updateActiveGame(ag, model);
                 }
+                Platform.runLater(() -> statsModel.getActiveGames().remove(ag));
                 // There is a tie
                 if (model.getGameOverState().equals(GameManager.GameOverState.Tie)) {
-                    this.addGameResult(
-                            new GameResult(
-                                    bot2.getBotName(), 
-                                    bot1.getBotName(), 
-                                    GameResult.Winner.tie));
-                    ties++;
+                    this.addGameResult(createResult(name2, name1, GameResult.Winner.tie, model));
+                    ties.incrementAndGet();
                 }
                 else { // There is a winner
-                    GameResult.Winner winResult=null;
+                    GameResult.Winner winResult;
                     if(currentPlayer==0) {
-                        winsBot2++;
+                        winsBot2.incrementAndGet();
                         winResult = GameResult.Winner.player0;
                     }
-                    else if(currentPlayer==1){
-                        winsBot1++;
+                    else {
+                        winsBot1.incrementAndGet();
                         winResult = GameResult.Winner.player1;
                     }
-                        
-                    this.addGameResult(
-                            new GameResult(
-                                    bot2.getBotName(), 
-                                    bot1.getBotName(), 
-                                    winResult));
+                    this.addGameResult(createResult(name2, name1, winResult, model));
                 }
-                
+                updateTitle();
+
             }
-            setSimulationResults(bot1.getBotName() + " vs " +
-                        bot2.getBotName() + " | " +
-                        "w/w/t " + winsBot1 + "/" +
-                        winsBot2 + "/" + ties);
+            if (activeSimThreads.decrementAndGet() == 0) {
+                Platform.runLater(() -> statsModel.simulatingProperty().set(false));
+            }
         }
-        private void setSimulationResults(String result) {
-            Platform.runLater(()-> 
-                statsModel.setLastSimulationResults(result));
+        private GameResult createResult(String p0, String p1, GameResult.Winner winner, BoardModel model) {
+            GameResult gr = new GameResult(p0, p1, winner);
+            String[][] board = model.getBoard();
+            String[][] boardCopy = new String[9][9];
+            for (int a = 0; a < 9; a++)
+                System.arraycopy(board[a], 0, boardCopy[a], 0, 9);
+            String[][] macro = model.getMacroboard();
+            String[][] macroCopy = new String[3][3];
+            for (int a = 0; a < 3; a++)
+                System.arraycopy(macro[a], 0, macroCopy[a], 0, 3);
+            gr.setBoard(boardCopy);
+            gr.setMacroboard(macroCopy);
+            return gr;
+        }
+
+        private void updateActiveGame(ActiveGame ag, BoardModel model) {
+            String[][] macro = model.getMacroboard();
+            String[][] macroCopy = new String[3][3];
+            for (int a = 0; a < 3; a++)
+                System.arraycopy(macro[a], 0, macroCopy[a], 0, 3);
+            String[][] board = model.getBoard();
+            String[][] boardCopy = new String[9][9];
+            for (int a = 0; a < 9; a++)
+                System.arraycopy(board[a], 0, boardCopy[a], 0, 9);
+            int cp = model.getCurrentPlayer();
+            Platform.runLater(() -> ag.updateFrom(cp, boardCopy, macroCopy));
+        }
+
+        private void updateTitle() {
+            Platform.runLater(() ->
+                statsModel.setLastSimulationResults(name1 + " vs " +
+                        name2 + " | " +
+                        "w/w/t " + winsBot1.get() + "/" +
+                        winsBot2.get() + "/" + ties.get()));
         }
         private void addGameResult(GameResult gameResult) {
             Platform.runLater(()->
@@ -305,14 +349,22 @@ public class AppController implements Initializable {
     }
 
     @FXML
-    public void clickStart(ActionEvent actionEvent) throws IOException {
-        if (simulation.get()) {
-            startSimulation(Math.round(sliderSim.getValue()));
-            statsModel.clear();
-            openStatsWindow();
+    private void clickStartSimulation(ActionEvent event) throws IOException {
+        String n0 = comboBotsLeft.getValue().getBotName();
+        String n1 = comboBotsRight.getValue().getBotName();
+        if (n0.equals(n1)) {
+            statsModel.setPlayerNames(n0 + " #1", n1 + " #2");
+        } else {
+            statsModel.setPlayerNames(n0, n1);
         }
-        else {
-            Stage primaryStage = new Stage();
+        statsModel.clear();
+        startSimulation(Math.round(sliderSim.getValue()));
+        openStatsWindow();
+    }
+
+    @FXML
+    public void clickStart(ActionEvent actionEvent) throws IOException {
+        Stage primaryStage = new Stage();
             primaryStage.initModality(Modality.WINDOW_MODAL);
             FXMLLoader fxLoader = new FXMLLoader(getClass().getResource("UTTTGame.fxml"));
 
@@ -352,12 +404,11 @@ public class AppController implements Initializable {
                         + " vs "
                         + txtHumanNameRight.getText());
             }
-            controller.setSpeed(sliderSpeed.getMax() - sliderSpeed.getValue());
+            controller.setSpeed(sliderSpeed.getValue());
             controller.startGame();
             controller.setStatsModel(statsModel);
             Scene scene = new Scene(root);
             primaryStage.setScene(scene);
             primaryStage.showAndWait();
-        }
     }
 }

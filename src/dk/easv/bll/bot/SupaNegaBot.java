@@ -13,7 +13,7 @@ import java.util.*;
 public class SupaNegaBot implements IBot {
 
     private static final String BOT_NAME = "SupaNegaBot";
-    private static final long TIME_MS = 920; // leave 80ms margin
+    private static final long TIME_MS = 940; // leave 60ms margin
     private static final int MAX_DEPTH = 14; // iterative deepening cap
     private static final int INF = 1_000_000; // represent infinity for our search algorithm
     private static final int WIN_SCORE = 900_000; // terminal win value

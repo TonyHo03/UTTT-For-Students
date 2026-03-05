@@ -1,6 +1,6 @@
 package dk.easv.gui;
 
-import com.jfoenix.controls.JFXButton;
+import javafx.scene.control.Button;
 
 import dk.easv.bll.bot.*;
 
@@ -34,7 +34,7 @@ public class UTTTGameController implements Initializable {
     private StackPane stackMain;
 
     private final GridPane[][] gridMicros = new GridPane[3][3];
-    private final JFXButton[][] jfxButtons = new JFXButton[9][9];
+    private final Button[][] jfxButtons = new Button[9][9];
 
     BoardModel model;
     StatsModel statsModel;
@@ -42,6 +42,8 @@ public class UTTTGameController implements Initializable {
     IBot bot1 = null;
     String player0 = null;
     String player1 = null;
+    String name0 = null;
+    String name1 = null;
 
     @Override
     public void initialize(URL location, ResourceBundle resources) {
@@ -55,19 +57,25 @@ public class UTTTGameController implements Initializable {
         }
 
         model.addListener(observable -> update());
+        update(); // Show initial state (all macroboards highlighted as available)
 
-        // HumanVsHuman
+        // HumanVsHuman — no setup needed, human clicks handle moves
         if (player0 != null && player1 != null) {
-
+            // no-op
         }
-        // HumanVsAI
+        // HumanVsAI — no setup needed, bot responds after human click
         else if (bot1 != null && player0 != null) {
-
+            // no-op
         }
         // AIvsHuman
         else if (bot0 != null && player1 != null) {
-            // FIX HERE, KEEPS ASKING FOR VALID MOVE IF BOT PLAYS INVALID good for player bot not bot
-            doBotMove();
+            gridMacro.setDisable(true);
+            Thread t = new Thread(() -> {
+                doBotMove();
+                Platform.runLater(() -> gridMacro.setDisable(false));
+            });
+            t.setDaemon(true);
+            t.start();
         }
         // AIvsAI
         else if (bot0 != null && bot1 != null) {
@@ -75,8 +83,8 @@ public class UTTTGameController implements Initializable {
             Thread t = new Thread(() -> {
                 while (model.getGameOverState() == GameManager.GameOverState.Active
                         && model.getGameState().getField().getAvailableMoves().size()>0) {
-                    // FIX HERE, KEEPS ASKING FOR VALID MOVE IF BOT PLAYS INVALID
                     boolean isValid = doBotMove();
+                    if (!isValid) break;
                     try {
                         Thread.sleep(botDelay);
                     }
@@ -116,22 +124,8 @@ public class UTTTGameController implements Initializable {
     }
 
     private String getNameFromId(int winnerId) {
-        if (winnerId == 0) {
-            if (bot0 != null) {
-                return bot0.getBotName();
-            }
-            else {
-                return player0;
-            }
-        }
-        else if (winnerId == 1) {
-            if (bot1 != null) {
-                return bot1.getBotName();
-            }
-            else {
-                return player1;
-            }
-        }
+        if (winnerId == 0) return name0;
+        if (winnerId == 1) return name1;
         throw new RuntimeException("Player id not found " + winnerId);
     }
 
@@ -145,8 +139,10 @@ public class UTTTGameController implements Initializable {
         else {
             int winnerId = Integer.parseInt(winner);
             winMsg = getNameFromId(winnerId) + " wins";
-            if(model.getIsForced())
-                winMsg += " (opponent false move)";
+            if(model.getIsForced()) {
+                String reason = model.getForfeitReason();
+                winMsg += reason != null ? " (" + reason + ")" : " (opponent forfeit)";
+            }
             winStatus = winnerId == 0
                     ? GameResult.Winner.player0
                     : GameResult.Winner.player1;
@@ -240,8 +236,7 @@ public class UTTTGameController implements Initializable {
                 GridPane gp = gridMicros[i][k];
                 for (int x = 0; x < 3; x++) {
                     for (int y = 0; y < 3; y++) {
-                        JFXButton btn = new JFXButton("");
-                        btn.setButtonType(JFXButton.ButtonType.RAISED);
+                        Button btn = new Button("");
                         btn.getStyleClass().add("tictaccell");
                         btn.setUserData(new Move(x + i * 3, y + k * 3));
                         btn.setFocusTraversable(false);
@@ -250,14 +245,29 @@ public class UTTTGameController implements Initializable {
                                     try {
                                         doMove((IMove) btn.getUserData()); // Player move
                                     } catch (Exception e) {
-                                        e.printStackTrace();
+                                        Logger.getLogger(UTTTGameController.class.getName())
+                                                .log(Level.SEVERE, "Error processing move", e);
                                     }
 
                                     boolean isHumanVsBot = player0 != null ^ player1 != null;
                                     if (model.getGameOverState() == GameManager.GameOverState.Active && isHumanVsBot) {
-                                        int currentPlayer = model.getCurrentPlayer();
-                                        Boolean valid = model.doMove();
-                                        checkAndLockIfGameEnd(currentPlayer);
+                                        gridMacro.setDisable(true);
+                                        Thread t = new Thread(() -> {
+                                            int currentPlayer = model.getCurrentPlayer();
+                                            boolean valid = model.doMove();
+                                            Platform.runLater(() -> {
+                                                if (!valid) {
+                                                    int opponent = (model.getCurrentPlayer() + 1) % 2;
+                                                    model.forceGameOver(opponent);
+                                                    showWinnerPane("" + opponent);
+                                                } else {
+                                                    checkAndLockIfGameEnd(currentPlayer);
+                                                }
+                                                gridMacro.setDisable(false);
+                                            });
+                                        });
+                                        t.setDaemon(true);
+                                        t.start();
                                     }
                                 }
                         );
@@ -340,6 +350,7 @@ public class UTTTGameController implements Initializable {
         gridMacro.add(lbl, x, y);
     }
 
+    /** Debug helper — prints the board to stdout. Not used in production. */
     private void printBoardInConsole() {
         String[][] board = model.getGameState().getField().getBoard();
         for (int i = 0; i < board.length; i++) {
@@ -360,24 +371,38 @@ public class UTTTGameController implements Initializable {
         model = new BoardModel(bot0, bot1);
         this.bot0 = bot0;
         this.bot1 = bot1;
+        initNames(bot0.getBotName(), bot1.getBotName());
     }
 
     public void setupGame(String humanName, IBot bot1) {
         model = new BoardModel(bot1, true);
         this.bot1 = bot1;
         this.player0 = humanName;
+        initNames(humanName, bot1.getBotName());
     }
 
     public void setupGame(IBot bot0, String humanName) {
         model = new BoardModel(bot0, false);
         this.bot0 = bot0;
         this.player1 = humanName;
+        initNames(bot0.getBotName(), humanName);
     }
 
     public void setupGame(String humanName0, String humanName1) {
         model = new BoardModel();
         this.player0 = humanName0;
         this.player1 = humanName1;
+        initNames(humanName0, humanName1);
+    }
+
+    private void initNames(String n0, String n1) {
+        if (n0.equals(n1)) {
+            name0 = n0 + " #1";
+            name1 = n1 + " #2";
+        } else {
+            name0 = n0;
+            name1 = n1;
+        }
     }
 
     public void setSpeed(double speed) {
@@ -386,5 +411,6 @@ public class UTTTGameController implements Initializable {
 
     public void setStatsModel(StatsModel statsModel) {
         this.statsModel = statsModel;
+        statsModel.setPlayerNames(name0, name1);
     }
 }
